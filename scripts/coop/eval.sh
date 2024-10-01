@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # custom config
-DATA=/path/to/datasets
+DATA=/home/lucasmc/Documents/ufrgs/datasets
 TRAINER=CoOp
 SHOTS=16
 NCTX=16
