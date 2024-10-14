@@ -19,13 +19,13 @@ class FairFace(DatasetBase):
     def read_data(self, mode):
         """Read data using mode.csv file and returns list of Datum"""
         rd = {
-            "White": 1,
-            "Black": 2,
-            "Indian": 3,
-            "Latino_Hispanic": 4,
-            "Southeast Asian": 5,
-            "East Asian": 6,
-            "Middle Eastern": 7
+            "White": 0,
+            "Black": 1,
+            "Indian": 2,
+            "Latino_Hispanic": 3,
+            "Southeast Asian": 4,
+            "East Asian": 5,
+            "Middle Eastern": 6
         }
 
         data_df = pd.read_csv(f"{self.dataset_dir}/fface_{mode}.csv")
