@@ -19,7 +19,7 @@ _tokenizer = _Tokenizer()
 def load_open_clip(cfg):
     """load open clip model to cpu device"""
     backbone_name = cfg.MODEL.BACKBONE.NAME
-    datasource = "openai"
+    datasource = cfg.MODEL.BACKBONE.SOURCE
     model, _, _ = open_clip.create_model_and_transforms(
         backbone_name, datasource, device='cpu')
     model.dtype = model.transformer.get_cast_dtype()
