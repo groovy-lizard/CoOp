@@ -27,3 +27,4 @@ TRAIN:
 MODEL:
   BACKBONE:
     NAME: "ViT-B-16"
+    SOURCE: "openai"
