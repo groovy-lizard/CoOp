@@ -192,16 +192,13 @@ class CustomCLIP(nn.Module):
         self.logit_scale = clip_model.logit_scale
         self.dtype = clip_model.dtype
 
-    def forward(self, image):
+    def forward(self, image_features):
         """forward call"""
-        image_features = self.image_encoder(image.type(self.dtype))
+        # image_features = self.image_encoder(image.type(self.dtype))
 
         prompts = self.prompt_learner()
         tokenized_prompts = self.tokenized_prompts
         text_features = self.text_encoder(prompts, tokenized_prompts)
-
-        image_features = image_features / \
-            image_features.norm(dim=-1, keepdim=True)
         text_features = text_features / \
             text_features.norm(dim=-1, keepdim=True)
 
@@ -266,17 +263,6 @@ class CoOp(TrainerX):
 
     def forward_backward(self, batch):
         image, label = self.parse_batch_train(batch)
-
-        # prec = self.cfg.TRAINER.COOP.PREC
-        # if prec == "amp":
-        #     with autocast():
-        #         output = self.model(image)
-        #         loss = F.cross_entropy(output, label)
-        #     self.optim.zero_grad()
-        #     self.scaler.scale(loss).backward()
-        #     self.scaler.step(self.optim)
-        #     self.scaler.update()
-        # else:
         output = self.model(image)
         loss = F.cross_entropy(output, label)
         self.model_backward_and_update(loss)

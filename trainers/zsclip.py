@@ -55,10 +55,7 @@ class ZeroshotCLIP(TrainerX):
         self.text_features = text_features
         self.clip_model = clip_model
 
-    def model_inference(self, image):
-        image_features = self.clip_model.encode_image(image)
-        image_features = image_features / \
-            image_features.norm(dim=-1, keepdim=True)
+    def model_inference(self, image_features):
         logit_scale = self.clip_model.logit_scale.exp()
         logits = logit_scale * image_features @ self.text_features.t()
         return logits
