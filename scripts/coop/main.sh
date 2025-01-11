@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # custom config
-DATA=/home/lucasmc/Documents/ufrgs/datasets
+DATA=/home/lucasmc/Documents/ufrgs/data/datasets
 TRAINER=CoOp
 
 DATASET=$1
