@@ -11,19 +11,19 @@ from dassl.metrics import compute_accuracy
 from dassl.utils import load_pretrained_weights, load_checkpoint
 from dassl.optim import build_optimizer, build_lr_scheduler
 import open_clip
-from clip.simple_tokenizer import SimpleTokenizer as _Tokenizer
-
-_tokenizer = _Tokenizer()
 
 
 def load_open_clip(cfg):
     """load open clip model to cpu device"""
     backbone_name = cfg.MODEL.BACKBONE.NAME
     datasource = cfg.MODEL.BACKBONE.SOURCE
-    model, _, _ = open_clip.create_model_and_transforms(
-        backbone_name, datasource, device='cpu')
+    url = open_clip.get_pretrained_url(backbone_name, datasource)
+    model_path = open_clip.download_pretrained_from_url(url)
+    jit_model = torch.jit.load(model_path, map_location='cpu').eval()
+    model = open_clip.model.build_model_from_openai_state_dict(
+        jit_model.state_dict())
     model.dtype = model.transformer.get_cast_dtype()
-    return model.eval()
+    return model
 
 
 class TextEncoder(nn.Module):
@@ -89,6 +89,7 @@ class PromptLearner(nn.Module):
         print(f"Number of context words (tokens): {n_ctx}")
 
         self.ctx = nn.Parameter(ctx_vectors)  # to be optimized
+        _tokenizer = open_clip.get_tokenizer(cfg.MODEL.BACKBONE.NAME)
 
         classnames = [name.replace("_", " ") for name in classnames]
         name_lens = [len(_tokenizer.encode(name)) for name in classnames]
