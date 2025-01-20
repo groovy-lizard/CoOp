@@ -4,13 +4,16 @@ import os.path as osp
 import torch
 from torch import nn
 from torch.nn import functional as F
-from torch.amp import GradScaler
+from torch.cuda.amp import GradScaler, autocast
 
 from dassl.engine import TRAINER_REGISTRY, TrainerX
 from dassl.metrics import compute_accuracy
 from dassl.utils import load_pretrained_weights, load_checkpoint
 from dassl.optim import build_optimizer, build_lr_scheduler
 import open_clip
+from open_clip import SimpleTokenizer as _Tokenizer
+
+_tokenizer = _Tokenizer()
 
 
 def load_open_clip(cfg):
@@ -61,14 +64,13 @@ class PromptLearner(nn.Module):
         ctx_dim = clip_model.ln_final.weight.shape[0]
         clip_imsize = 224  # clip_model.visual.input_resolution
         cfg_imsize = cfg.INPUT.SIZE[0]
-        tokenizer = open_clip.get_tokenizer(cfg.MODEL.BACKBONE.NAME)
         assert cfg_imsize == clip_imsize
 
         if ctx_init:
             # use given words to initialize context vectors
             ctx_init = ctx_init.replace("_", " ")
             n_ctx = len(ctx_init.split(" "))
-            prompt = tokenizer(ctx_init)
+            prompt = open_clip.tokenize(ctx_init)
             with torch.no_grad():
                 embedding = clip_model.token_embedding(prompt).type(dtype)
             ctx_vectors = embedding[0, 1: 1 + n_ctx, :]
@@ -89,13 +91,12 @@ class PromptLearner(nn.Module):
         print(f"Number of context words (tokens): {n_ctx}")
 
         self.ctx = nn.Parameter(ctx_vectors)  # to be optimized
-        _tokenizer = open_clip.get_tokenizer(cfg.MODEL.BACKBONE.NAME)
 
         classnames = [name.replace("_", " ") for name in classnames]
         name_lens = [len(_tokenizer.encode(name)) for name in classnames]
         prompts = [prompt_prefix + " " + name + "." for name in classnames]
 
-        tokenized_prompts = torch.cat([tokenizer(p) for p in prompts])
+        tokenized_prompts = torch.cat([open_clip.tokenize(p) for p in prompts])
         with torch.no_grad():
             embedding = clip_model.token_embedding(
                 tokenized_prompts).type(dtype)
@@ -201,10 +202,10 @@ class CustomCLIP(nn.Module):
         tokenized_prompts = self.tokenized_prompts
         text_features = self.text_encoder(prompts, tokenized_prompts)
 
-        image_features = image_features / \
-            image_features.norm(dim=-1, keepdim=True)
-        text_features = text_features / \
-            text_features.norm(dim=-1, keepdim=True)
+        image_features = image_features / image_features.norm(dim=-1,
+                                                              keepdim=True)
+        text_features = text_features / text_features.norm(dim=-1,
+                                                           keepdim=True)
 
         logit_scale = self.logit_scale.exp()
         logits = logit_scale * image_features @ text_features.t()
@@ -268,19 +269,19 @@ class CoOp(TrainerX):
     def forward_backward(self, batch):
         image, label = self.parse_batch_train(batch)
 
-        # prec = self.cfg.TRAINER.COOP.PREC
-        # if prec == "amp":
-        #     with autocast():
-        #         output = self.model(image)
-        #         loss = F.cross_entropy(output, label)
-        #     self.optim.zero_grad()
-        #     self.scaler.scale(loss).backward()
-        #     self.scaler.step(self.optim)
-        #     self.scaler.update()
-        # else:
-        output = self.model(image)
-        loss = F.cross_entropy(output, label)
-        self.model_backward_and_update(loss)
+        prec = self.cfg.TRAINER.COOP.PREC
+        if prec == "amp":
+            with autocast():
+                output = self.model(image)
+                loss = F.cross_entropy(output, label)
+            self.optim.zero_grad()
+            self.scaler.scale(loss).backward()
+            self.scaler.step(self.optim)
+            self.scaler.update()
+        else:
+            output = self.model(image)
+            loss = F.cross_entropy(output, label)
+            self.model_backward_and_update(loss)
 
         loss_summary = {
             "loss": loss.item(),
