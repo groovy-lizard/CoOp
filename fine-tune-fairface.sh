@@ -9,4 +9,4 @@
 
 # bash scripts/coop/main.sh <DATASET> <CFG> <CTP> <NCTX> <SHOTS> <CSC>
 
-bash scripts/coop/main.sh fairface vit_b32_ep50 middle 16 1 False
+bash scripts/coop/main.sh fairface vit_l14_ep50 middle 16 1 False
